@@ -6,11 +6,26 @@ output: pdf_document
 - Haoyu You (Student ID: 34735811)
 - Ruohan Sun (Student ID: 59673772)
 
+# Github website: 
+
+https://github.com/HaoyuYou/Bayesian-Statistics-Project.git
+
 # Dataset
 - main:
-```{r}
 
+The dataset used in this project is the Bike Sharing Dataset from the UCI Machine Learning Repository. It contains information about daily bike rental usage in a bike sharing system from 2011 to 2012.
+
+We use the daily dataset (`day.csv`), which includes 731 observations, where each observation represents one day. The dataset records the total number of bike rentals (`cnt`) along with several explanatory variables related to time and weather conditions.
+
+Key variables include temperature (`temp`), humidity (`hum`), wind speed (`windspeed`), season (`season`), weather situation (`weathersit`), and whether the day is a working day (`workingday`). These variables help explain patterns in bike rental demand.
+
+```{r main}
+data <- read.csv("data/day.csv")
+head(data)
 ```
+
+URL: https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
+
 
 - backup:
 ```{r}
@@ -19,7 +34,49 @@ output: pdf_document
 
 # Scientific Question:
 
+Our main research question is:
+
+**How do weather conditions and seasonal factors influence daily bike rental demand?**
+
+More specifically, we aim to model how variables such as temperature, humidity, wind speed, season, and working day status affect the total number of bike rentals (`cnt`).
+
+Bike sharing demand is influenced by both environmental conditions and human behavior patterns. Understanding these relationships can help improve demand prediction and support better planning for urban transportation systems.
+
+Using Bayesian modelling allows us to quantify uncertainty in parameter estimates and make probabilistic interpretations of the effects of different predictors on bike rental demand.
+
 # Methodology:
+
+For main question: 
+
+We plan to build a Bayesian regression model to explain and predict the number of bike rentals.
+
+Because the response variable `cnt` is a count variable, we will consider a Poisson regression model:
+
+\[
+cnt_i \sim \text{Poisson}(\lambda_i)
+\]
+
+with
+
+\[
+\log(\lambda_i) = \beta_0 + \beta_1 temp_i + \beta_2 hum_i + \beta_3 windspeed_i + \beta_4 workingday_i + \beta_5 season_i
+\]
+
+We will place prior distributions on the regression coefficients:
+
+\[
+\beta_j \sim \text{Normal}(0,10)
+\]
+
+The model will be implemented using the simPPLe probabilistic programming framework used in this course.
+
+Posterior inference will be performed using MCMC sampling, allowing us to estimate:
+
+- posterior distributions of regression coefficients  
+- uncertainty in demand predictions  
+- the relative importance of different predictors  
+
+We will also perform posterior predictive checks to evaluate the model fit.
 
 # Contribution plan:
 
