@@ -1,0 +1,26 @@
+---
+title: "STAT 405 Project Proposal"
+output: pdf_document
+---
+# Team Member:
+- Haoyu You (Student ID: 34735811)
+- Ruohan Sun (Student ID: 59673772)
+
+# Dataset
+- main:
+```{r}
+
+```
+
+- backup:
+```{r}
+
+```
+
+# Scientific Question:
+
+# Methodology:
+
+# Contribution plan:
+
+
