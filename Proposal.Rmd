@@ -11,7 +11,7 @@ output: pdf_document
 https://github.com/HaoyuYou/Bayesian-Statistics-Project.git
 
 # Dataset
-- main:
+## main:
 
 The dataset used in this project is the Bike Sharing Dataset from the UCI Machine Learning Repository. It contains information about daily bike rental usage in a bike sharing system from 2011 to 2012.
 
@@ -24,19 +24,18 @@ data <- read.csv("data/day.csv")
 head(data)
 ```
 
-URL: https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
+### URL: 
 
+https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
 
-- backup:
+## backup:
 ```{r}
 
 ```
 
 # Scientific Question:
 
-Our main research question is:
-
-**How do weather conditions and seasonal factors influence daily bike rental demand?**
+**How do weather conditions and seasonal factors influence daily bike rental demand?** Does a more flexible Bayesian count model provide a better fit and more realistic uncertainty quantification than a simpler baseline model?
 
 More specifically, we aim to model how variables such as temperature, humidity, wind speed, season, and working day status affect the total number of bike rentals (`cnt`).
 
@@ -46,11 +45,29 @@ Using Bayesian modelling allows us to quantify uncertainty in parameter estimate
 
 # Methodology:
 
-For main question: 
+We plan to build Bayesian models to explain and predict the number of daily bike rentals. In particular, we will consider two models: a simple baseline model and a more flexible regression model incorporating environmental predictors.
 
-We plan to build a Bayesian regression model to explain and predict the number of bike rentals.
+Before fitting the Bayesian models, we will perform exploratory data analysis (EDA) to understand the distributions of key variables and their relationships with bike rental demand. This includes visualizing the distribution of the response variable (`cnt`) and examining how it varies with weather conditions and seasonal factors.
 
-Because the response variable `cnt` is a count variable, we will consider a Poisson regression model:
+### Model 1: Naive Poisson Model
+
+As a baseline, we first consider a simple Poisson model where all days share the same rental rate:
+
+\[
+cnt_i \sim \text{Poisson}(\lambda)
+\]
+
+This model assumes that the expected number of rentals is constant across all observations and does not depend on any explanatory variables. We place a prior distribution on the rate parameter:
+
+\[
+\lambda \sim \text{Gamma}(1,1)
+\]
+
+This naive model provides a simple reference point against which more complex models can be compared.
+
+### Model 2: Bayesian Poisson Regression Model
+
+To capture the influence of environmental and temporal factors, we then consider a Poisson regression model where the rental rate varies across observations:
 
 \[
 cnt_i \sim \text{Poisson}(\lambda_i)
@@ -59,25 +76,49 @@ cnt_i \sim \text{Poisson}(\lambda_i)
 with
 
 \[
-\log(\lambda_i) = \beta_0 + \beta_1 temp_i + \beta_2 hum_i + \beta_3 windspeed_i + \beta_4 workingday_i + \beta_5 season_i
+\log(\lambda_i) =
+\beta_0 +
+\beta_1 temp_i +
+\beta_2 hum_i +
+\beta_3 windspeed_i +
+\beta_4 workingday_i +
+\beta_5 season_i
 \]
 
-We will place prior distributions on the regression coefficients:
+We place prior distributions on the regression coefficients:
 
 \[
-\beta_j \sim \text{Normal}(0,10)
+\beta_j \sim \text{Normal}(0,10^2)
 \]
 
-The model will be implemented using the simPPLe probabilistic programming framework used in this course.
+This model allows us to quantify how weather conditions and seasonal factors influence bike rental demand.
 
-Posterior inference will be performed using MCMC sampling, allowing us to estimate:
+### Inference
 
-- posterior distributions of regression coefficients  
-- uncertainty in demand predictions  
-- the relative importance of different predictors  
+The models will be implemented using the simPPLe probabilistic programming framework used in this course. Posterior inference will be performed using MCMC sampling.
 
-We will also perform posterior predictive checks to evaluate the model fit.
+We will estimate:
+
+- posterior distributions of model parameters
+- uncertainty in predicted bike rental demand
+- the relative importance of different predictors
+
+Finally, we will compare the two models using posterior predictive checks to evaluate their ability to explain the observed data.
 
 # Contribution plan:
 
+This is a team project and both team members will contribute to all stages of the project.
 
+**Ruohan Sun**
+
+- Data preprocessing and exploratory data analysis (EDA)
+- Implementation of the Bayesian models
+- Posterior inference and model diagnostics
+- Visualization of results
+
+**Haoyu You**
+
+- Literature review and background research
+- Model formulation and prior specification
+- Model comparison and interpretation of results
+- Writing and editing the final report
