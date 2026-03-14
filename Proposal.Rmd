@@ -11,7 +11,7 @@ output: pdf_document
 https://github.com/HaoyuYou/Bayesian-Statistics-Project.git
 
 # Dataset
-## main:
+## main: Bike Sharing Demand
 
 The dataset used in this project is the Bike Sharing Dataset from the UCI Machine Learning Repository. It contains information about daily bike rental usage in a bike sharing system from 2011 to 2012.
 
@@ -20,18 +20,25 @@ We use the daily dataset (`day.csv`), which includes 731 observations, where eac
 Key variables include temperature (`temp`), humidity (`hum`), wind speed (`windspeed`), season (`season`), weather situation (`weathersit`), and whether the day is a working day (`workingday`). These variables help explain patterns in bike rental demand.
 
 ```{r main}
-data <- read.csv("data/day.csv")
-head(data)
+bike <- read.csv("data/day.csv")
+cat_vars <- c("season", "yr", "mnth", "holiday", "weekday", "workingday", "weathersit")
+bike[cat_vars] <- lapply(bike[cat_vars], as.factor)
+head(bike)
 ```
 
 ### URL: 
 
 https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
 
-## backup:
-```{r}
+## backup: BMW Global Automotive Sale
 
+```{r}
+bmw <- read.csv("data/bmw_global_sales_2018_2025.csv")
+head(bmw)
 ```
+### URL: 
+
+https://www.kaggle.com/datasets/dmahajanbe23/bmw-global-automotive-sales
 
 # Scientific Question:
 
@@ -49,49 +56,45 @@ We plan to build Bayesian models to explain and predict the number of daily bike
 
 Before fitting the Bayesian models, we will perform exploratory data analysis (EDA) to understand the distributions of key variables and their relationships with bike rental demand. This includes visualizing the distribution of the response variable (`cnt`) and examining how it varies with weather conditions and seasonal factors.
 
-### Model 1: Naive Poisson Model
+### Model 1: Naive Model
 
-As a baseline, we first consider a simple Poisson model where all days share the same rental rate:
-
+As a baseline, we first consider a simple Bayesian Poisson regression model for daily bike-sharing demand. Let $Y_i$ be the total rental count (`cnt`) on day i. Since the response variable is a nonnegative count, a Poisson model provides a natural starting point for modeling the distribution of daily demand. We assume
 \[
-cnt_i \sim \text{Poisson}(\lambda)
+Y_i|\lambda_i \sim \text{Poisson}(\lambda_i) \qquad  \log(\lambda_i) = \beta_0 + \beta_1 temp_i + \beta_2 hum_i + \beta_3 windspeed_i
+\]
+In this model, $\lambda_i$ represents the expected number of bike rentals on day i, and its logarithm is modeled as a linear function of three continuous weather-related predictors: temperature, humidity, and windspeed. The log link is used to ensure that the Poisson mean $\lambda_i$ is always positive.
+
+
+### Model 2: Complex Model
+As a more flexible model, we then consider a Bayesian hierarchical Poisson regression model with month-specific intercepts. The purpose of this hierarchical structure is to capture systematic variation in baseline demand across months while allowing partial pooling across groups. This allows the model to borrow strength across months and produce more stable estimates. 
+
+For the other calendar-related factors, we treat them as fixed effects because of their small number of groups, even if some of them are relatively imbalanced. Because season is largely determined by month, including both month effects and season effects would introduce substantial redundancy and may lead to aliasing issues. Therefore, once month is used as the main grouping factor in the hierarchical model, season is omitted from the linear predictor. Therefore, for this hierarchical model, we assume
+
+\[Y_i \mid \lambda_i \sim \mathrm{Poisson}(\lambda_i),\]
+\[
+\log(\lambda_i) = \alpha_{m[i]} +
+\beta_1 \,\mathrm{temp}_i+ \beta_2 \,\mathrm{hum}_i+\beta_3 \,\mathrm{windspeed}_i+
+\beta_4 \,\mathrm{holiday}_i+ \beta_5 \,\mathrm{workingday}_i+\beta_6 \,\mathrm{weathersit}_i+ \beta_7 \,\mathrm{yr}_i,
 \]
 
-This model assumes that the expected number of rentals is constant across all observations and does not depend on any explanatory variables. We place a prior distribution on the rate parameter:
+where \(m[i] \in \{1,\dots,12\}\) indicates the month associated with observation \(i\). The month-specific intercepts are modeled hierarchically as
 
 \[
-\lambda \sim \text{Gamma}(1,1)
+\alpha_m \sim N(\mu_\alpha, \sigma_\alpha^2), \qquad m=1,\dots,12.
 \]
 
-This naive model provides a simple reference point against which more complex models can be compared.
-
-### Model 2: Bayesian Poisson Regression Model
-
-To capture the influence of environmental and temporal factors, we then consider a Poisson regression model where the rental rate varies across observations:
+We assign weakly informative priors to the regression coefficients and hyperparameters, for example,
 
 \[
-cnt_i \sim \text{Poisson}(\lambda_i)
+\beta_j \sim N(0, 10^2), \qquad j=1,\dots,7,
 \]
-
-with
-
 \[
-\log(\lambda_i) =
-\beta_0 +
-\beta_1 temp_i +
-\beta_2 hum_i +
-\beta_3 windspeed_i +
-\beta_4 workingday_i +
-\beta_5 season_i
+\mu_\alpha \sim N(0, 10^2),
+\qquad
+\sigma_\alpha \sim \mathrm{HalfNormal}(0, 5).
 \]
 
-We place prior distributions on the regression coefficients:
-
-\[
-\beta_j \sim \text{Normal}(0,10^2)
-\]
-
-This model allows us to quantify how weather conditions and seasonal factors influence bike rental demand.
+This hierarchical Bayesian framework allows us to model both the overall effects of weather and calendar-related predictors and the month-to-month heterogeneity in baseline demand. 
 
 ### Inference
 
