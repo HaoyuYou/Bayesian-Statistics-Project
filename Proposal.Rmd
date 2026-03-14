@@ -98,15 +98,18 @@ This hierarchical Bayesian framework allows us to model both the overall effects
 
 ### Inference
 
-The models will be implemented using the simPPLe probabilistic programming framework used in this course. Posterior inference will be performed using MCMC sampling.
+The proposed models will be implemented in Stan. Posterior inference will primarily be performed using Markov chain Monte Carlo (MCMC) sampling.
 
-We will estimate:
+To satisfy the course requirement of using two posterior inference methods, we also plan to compare MCMC-based inference with a simpler approximation-based approach, such as MAP/Laplace approximation.
+
+From the posterior output, we will estimate:
 
 - posterior distributions of model parameters
-- uncertainty in predicted bike rental demand
-- the relative importance of different predictors
+- uncertainty in expected and predicted bike rental demand
+- month-specific baseline demand effects in the hierarchical model
+- the effects of weather and calendar-related predictors on bike-sharing demand
 
-Finally, we will compare the two models using posterior predictive checks to evaluate their ability to explain the observed data.
+Finally, we will compare the naive and hierarchical models using posterior predictive checks and held-out predictive performance. We will also compare the two inference approaches in terms of posterior summaries, uncertainty quantification, and predictive behavior.
 
 # Contribution plan:
 
