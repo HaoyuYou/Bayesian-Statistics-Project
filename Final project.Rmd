@@ -1,0 +1,424 @@
+---
+title: "STAT405 Bayesian Statistics Final Project"
+output: pdf_document
+---
+# EDA
+```{r, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(car)
+```
+
+```{r}
+house_price <- read.csv("data/house-prices-advanced-regression-techniques/train.csv")
+
+# check MSSubClass, it should be character
+house_price$MSSubClass <- as.character(house_price$MSSubClass)
+
+# Replace NA with explicit categories
+house_price$Alley[is.na(house_price$Alley)] <- "NoAlley"
+house_price$GarageType[is.na(house_price$GarageType)] <- "NoGarageType"
+house_price$MasVnrType[is.na(house_price$MasVnrType)] <- "NoMasVnrType"
+house_price$MasVnrArea[is.na(house_price$MasVnrArea)] <- 0
+house_price$Fence[is.na(house_price$Fence)] <- "NoFence"
+house_price$MiscFeature[is.na(house_price$MiscFeature)] <- "NoMiscFeature"
+
+
+house_price$BsmtQual[is.na(house_price$BsmtQual)] <- "NoBsmt"
+house_price$BsmtCond[is.na(house_price$BsmtCond)] <- "NoBsmt"
+house_price$BsmtExposure[is.na(house_price$BsmtExposure)] <- "NoBsmt"
+house_price$BsmtFinType1[is.na(house_price$BsmtFinType1)] <- "NoBsmt"
+house_price$BsmtFinType2[is.na(house_price$BsmtFinType2)] <- "NoBsmt"
+house_price$FireplaceQu[is.na(house_price$FireplaceQu)] <- "NoFireplace"
+house_price$GarageFinish[is.na(house_price$GarageFinish)] <- "NoGarage"
+house_price$GarageQual[is.na(house_price$GarageQual)] <- "NoGarage"
+house_price$GarageCond[is.na(house_price$GarageCond)] <- "NoGarage"
+house_price$PoolQC[is.na(house_price$PoolQC)] <- "NoPool"
+
+# Add indicator variables first
+house_price$HasBsmt <- as.factor(ifelse(house_price$TotalBsmtSF > 0, 1, 0))
+house_price$HasGarage <- as.factor(ifelse(house_price$GarageArea > 0, 1, 0))
+house_price$HasFireplace <- as.factor(ifelse(house_price$Fireplaces > 0, 1, 0))
+house_price$HasPool <- as.factor(ifelse(house_price$PoolArea > 0, 1, 0))
+house_price$HasMasVnr <- as.factor(ifelse(house_price$MasVnrArea > 0, 1, 0))
+
+# Convert to ordered factors
+qual_levels <- c("Po", "Fa", "TA", "Gd", "Ex")
+house_price$ExterQual <- factor(house_price$ExterQual,
+                                levels = qual_levels, ordered = TRUE)
+house_price$ExterCond <- factor(house_price$ExterCond,
+                                levels = qual_levels, ordered = TRUE)
+house_price$BsmtQual <- factor(house_price$BsmtQual,
+                               levels = c("NoBsmt", "Po", "Fa", "TA", "Gd", "Ex"),
+                               ordered = TRUE)
+house_price$BsmtCond <- factor(house_price$BsmtCond,
+                               levels = c("NoBsmt", "Po", "Fa", "TA", "Gd", "Ex"),
+                               ordered = TRUE)
+house_price$BsmtExposure <- factor(house_price$BsmtExposure,
+                                   levels = c("NoBsmt", "No", "Mn", "Av", "Gd"),
+                                   ordered = TRUE)
+house_price$BsmtFinType1 <- factor(house_price$BsmtFinType1,
+                                   levels = c("NoBsmt", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"),
+                                   ordered = TRUE)
+house_price$BsmtFinType2 <- factor(house_price$BsmtFinType2,
+                                   levels = c("NoBsmt", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"),
+                                   ordered = TRUE)
+house_price$HeatingQC <- factor(house_price$HeatingQC,
+                                levels = qual_levels, ordered = TRUE)
+house_price$KitchenQual <- factor(house_price$KitchenQual,
+                                  levels = qual_levels, ordered = TRUE)
+house_price$Functional <- factor(house_price$Functional,
+                                 levels = c("Sal", "Sev", "Maj2", "Maj1", "Mod", "Min2", "Min1", "Typ"),
+                                 ordered = TRUE)
+house_price$FireplaceQu <- factor(house_price$FireplaceQu,
+                                  levels = c("NoFireplace", "Po", "Fa", "TA", "Gd", "Ex"),
+                                  ordered = TRUE)
+house_price$GarageFinish <- factor(house_price$GarageFinish,
+                                   levels = c("NoGarage", "Unf", "RFn", "Fin"),
+                                   ordered = TRUE)
+house_price$GarageQual <- factor(house_price$GarageQual,
+                                 levels = c("NoGarage", "Po", "Fa", "TA", "Gd", "Ex"),
+                                 ordered = TRUE)
+house_price$GarageCond <- factor(house_price$GarageCond,
+                                 levels = c("NoGarage", "Po", "Fa", "TA", "Gd", "Ex"),
+                                 ordered = TRUE)
+house_price$PoolQC <- factor(house_price$PoolQC,
+                             levels = c("NoPool", "Fa", "TA", "Gd", "Ex"),
+                             ordered = TRUE)
+house_price$LotShape <- factor(house_price$LotShape,
+                               levels = c("IR3", "IR2", "IR1", "Reg"),
+                               ordered = TRUE)
+house_price$LandSlope <- factor(house_price$LandSlope,
+                                levels = c("Sev", "Mod", "Gtl"),
+                                ordered = TRUE)
+house_price$PavedDrive <- factor(house_price$PavedDrive,
+                                 levels = c("N", "P", "Y"),
+                                 ordered = TRUE)
+
+# Convert ordered factors to numeric scores
+ordinal_to_numeric <- function(x) as.numeric(x) - 1
+
+ord_vars <- c(
+  "ExterQual", "ExterCond",
+  "BsmtQual", "BsmtCond", "BsmtExposure", "BsmtFinType1", "BsmtFinType2",
+  "HeatingQC", "KitchenQual", "Functional", "FireplaceQu",
+  "GarageFinish", "GarageQual", "GarageCond",
+  "PoolQC", "LotShape", "LandSlope", "PavedDrive"
+)
+house_price[ord_vars] <- lapply(house_price[ord_vars], ordinal_to_numeric)
+house_price <- na.omit(house_price)
+
+cat_vars <- names(house_price)[sapply(house_price, function(x) is.factor(x) || is.character(x))]
+for (v in cat_vars) {
+  cat("\n----------------------\n")
+  cat("Variable:", v, "\n")
+  print(table(house_price[[v]], useNA = "ifany"))
+}
+```
+
+
+```{r}
+# month as time seires
+house_price$month_sin <- sin(2 * pi * house_price$MoSold / 12)
+house_price$month_cos <- cos(2 * pi * house_price$MoSold / 12)
+# 
+house_price$YearSinceRemodel <- house_price$YrSold - house_price$YearRemodAdd
+house_price$YearSinceBuild <- house_price$YrSold - house_price$YearBuilt
+
+house_price <- house_price |>
+  select(-Id, -MoSold, -YrSold, -YearRemodAdd, -YearBuilt, 
+         # only one level
+         -HasGarage, -Utilities,
+         # too sparse
+         -Street, -Condition2, -RoofMatl, -Heating, -HasPool, -MiscFeature)
+
+# merge some level
+house_price$Condition1 <- dplyr::case_when(
+  house_price$Condition1 == "Norm" ~ "Norm",
+  house_price$Condition1 %in% c("Artery", "Feedr") ~ "Road",
+  house_price$Condition1 %in% c("RRAn", "RRAe", "RRNe", "RRNn") ~ "Railroad",
+  house_price$Condition1 %in% c("PosA", "PosN") ~ "PositiveFeature",
+  TRUE ~ "Other"
+)
+house_price$Condition1 <- factor(house_price$Condition1)
+house_price$RoofStyle <- dplyr::case_when(
+  house_price$RoofStyle %in% c("Gable", "Hip") ~ house_price$RoofStyle,
+  TRUE ~ "Other"
+)
+house_price$RoofStyle <- factor(house_price$RoofStyle)
+house_price$Exterior1st <- dplyr::case_when(
+  house_price$Exterior1st %in% c("VinylSd", "MetalSd", "HdBoard", "Wd Sdng", "Plywood", "CemntBd") ~ house_price$Exterior1st,
+  house_price$Exterior1st %in% c("BrkFace", "Stone", "Stucco", "WdShing", "AsbShng") ~ house_price$Exterior1st,
+  TRUE ~ "Other"
+)
+house_price$Exterior1st <- factor(house_price$Exterior1st)
+house_price$Exterior2nd <- dplyr::case_when(
+  house_price$Exterior2nd %in% c("VinylSd", "MetalSd", "HdBoard", "Wd Sdng", "Plywood", "CmentBd", "Wd Shng") ~ house_price$Exterior2nd,
+  house_price$Exterior2nd %in% c("BrkFace", "Stucco", "AsbShng") ~ house_price$Exterior2nd,
+  TRUE ~ "Other"
+)
+house_price$Exterior2nd <- factor(house_price$Exterior2nd)
+house_price$Electrical <- dplyr::case_when(
+  house_price$Electrical == "SBrkr" ~ "SBrkr",
+  house_price$Electrical %in% c("FuseA", "FuseF") ~ "Fuse",
+  house_price$Electrical %in% c("FuseP", "Mix") ~ "PoorOrMixed",
+  TRUE ~ "Other"
+)
+house_price$Electrical <- factor(house_price$Electrical)
+house_price$GarageType <- dplyr::case_when(
+  house_price$GarageType == "Attchd" ~ "Attached",
+  house_price$GarageType == "Detchd" ~ "Detached",
+  house_price$GarageType == "BuiltIn" ~ "BuiltIn",
+  house_price$GarageType %in% c("Basment", "CarPort", "2Types") ~ "OtherGarage",
+  TRUE ~ "OtherGarage"
+)
+house_price$GarageType <- factor(house_price$GarageType)
+house_price$SaleType <- dplyr::case_when(
+  house_price$SaleType == "WD" ~ "WarrantyDeed",
+  house_price$SaleType == "New" ~ "NewHome",
+  house_price$SaleType == "COD" ~ "CourtOrEstate",
+  house_price$SaleType %in% c("CWD", "Con", "ConLD", "ConLI", "ConLw", "Oth") ~ "OtherSaleType",
+  TRUE ~ "OtherSaleType"
+)
+house_price$SaleType <- factor(house_price$SaleType)
+house_price$SaleCondition <- dplyr::case_when(
+  house_price$SaleCondition == "Normal" ~ "Normal",
+  house_price$SaleCondition == "Abnorml" ~ "Abnormal",
+  house_price$SaleCondition == "Partial" ~ "Partial",
+  house_price$SaleCondition %in% c("AdjLand", "Alloca", "Family") ~ "OtherCondition",
+  TRUE ~ "OtherCondition"
+)
+house_price$SaleCondition <- factor(house_price$SaleCondition)
+
+cat_vars <- names(house_price)[sapply(house_price, function(x) is.factor(x) || is.character(x))]
+for (v in cat_vars) {
+  cat("\n----------------------\n")
+  cat("Variable:", v, "\n")
+  print(table(house_price[[v]], useNA = "ifany"))
+}
+```
+
+```{r}
+# check distribution of Y
+ggplot(house_price, aes(x = SalePrice)) +
+  geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+  labs(title = "Histogram of House Price",
+       x = "Sale Price",
+       y = "Frequency")
+
+# Right skew -> log(SalePrice)
+house_price$LogSalePrice = log(house_price$SalePrice)
+ggplot(house_price, aes(x = LogSalePrice)) +
+  geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+  labs(title = "Histogram of House Price",
+       x = "Sale Price",
+       y = "Frequency")
+house_price <- house_price |> select(-SalePrice)
+```
+
+```{r}
+numeric_vars <- house_price[, sapply(house_price, is.numeric)]
+cor_matrix <- cor(numeric_vars, use = "pairwise.complete.obs")
+cor_with_log_price_abs <- abs(cor_matrix[, "LogSalePrice"])
+cor_with_log_price_abs <- sort(
+  cor_with_log_price_abs[names(cor_with_log_price_abs) != "LogSalePrice"],
+  decreasing = TRUE
+)
+cor_with_log_price_abs
+drop_vars <- names(cor_with_log_price_abs[cor_with_log_price_abs < 0.3])
+house_price <- house_price |> select(-all_of(drop_vars))
+```
+
+```{r}
+# drop high cor features
+numeric_vars2 <- house_price[, sapply(house_price, is.numeric)]
+numeric_vars2 <- numeric_vars2[, colnames(numeric_vars2) != "LogSalePrice"]
+selected_cor_matrix <- cor(numeric_vars2, use = "pairwise.complete.obs")
+high_cor_pairs <- which(
+  abs(selected_cor_matrix) > 0.7 & upper.tri(selected_cor_matrix),
+  arr.ind = TRUE
+)
+high_cor_df <- data.frame(
+  var1 = rownames(selected_cor_matrix)[high_cor_pairs[, 1]],
+  var2 = colnames(selected_cor_matrix)[high_cor_pairs[, 2]],
+  cor  = selected_cor_matrix[high_cor_pairs]
+)
+high_cor_df
+```
+
+
+```{r}
+drop_vars_highcor <- c()
+
+for (i in 1:nrow(high_cor_df)) {
+  v1 <- high_cor_df$var1[i]
+  v2 <- high_cor_df$var2[i]
+
+  c1 <- cor_with_log_price_abs[v1]
+  c2 <- cor_with_log_price_abs[v2]
+
+  if (c1 < c2) {
+    drop_vars_highcor <- c(drop_vars_highcor, v1)
+  } else {
+    drop_vars_highcor <- c(drop_vars_highcor, v2)
+  }
+}
+
+drop_vars_highcor <- unique(drop_vars_highcor)
+house_price <- house_price |> select(-all_of(drop_vars_highcor))
+```
+
+```{r}
+# check categorical features using ANOVA
+# convert character to factor
+house_price[] <- lapply(house_price, function(x) {
+  if (is.character(x)) as.factor(x) else x
+})
+# select factor variables only
+cat_features <- house_price[, sapply(house_price, is.factor)]
+
+cat_features <- cat_features[, colnames(cat_features) != "LogSalePrice", drop = FALSE]
+cat_pvalues_list <- lapply(names(cat_features), function(var) {
+  fit <- aov(as.formula(paste("LogSalePrice ~", var)), data = house_price)
+  p_val <- summary(fit)[[1]][["Pr(>F)"]][1]
+  
+  level_counts <- table(house_price[[var]])
+  
+  data.frame(
+    variable = var,
+    p_value = p_val,
+    n_levels = nlevels(cat_features[[var]]),
+    min_count = min(level_counts),
+    stringsAsFactors = FALSE
+  )
+})
+cat_pvalues <- do.call(rbind, cat_pvalues_list)
+cat_pvalues <- cat_pvalues[order(cat_pvalues$p_value), ]
+cat_pvalues
+```
+
+```{r}
+#full anova model
+full_model <- lm(LogSalePrice ~ ., data = house_price)
+alias(full_model)
+```
+```{r}
+house_price <- house_price|> select(-BldgType)
+reduced_model <- lm(LogSalePrice ~ ., data = house_price)
+anova(reduced_model)
+```
+```{r}
+house_price <- house_price |>
+  select(
+    -GarageType,
+    -Fence,
+    -HasBsmt,
+    -HasFireplace,
+    -HasMasVnr,
+    -YearSinceBuild,
+    # *
+    -Exterior2nd,
+    -WoodDeckSF,
+    -SaleType,
+    # **
+    -Alley,
+    -RoofStyle,
+    -FullBath,
+    -GarageFinish,
+    -OpenPorchSF
+  )
+full_model <- lm(LogSalePrice ~ ., data = house_price)
+vif(full_model)
+```
+
+
+
+```{r}
+str(house_price)
+```
+
+# Model
+## native model(only consider some numeric variable)
+some reason:
+
+
+
+
+
+
+```{r}
+vars <- c(
+  "OverallQual",
+  "GrLivArea",
+  "GarageCars",
+  "TotalBsmtSF",
+  "YearSinceRemodel"
+)
+for (v in vars) {
+  p <- ggplot(house_price, aes(x = .data[[v]])) +
+    geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+    labs(
+      title = paste("Histogram of", v),
+      x = v,
+      y = "Count"
+    ) +
+    theme_minimal()
+  print(p)
+}
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Since some predictors are right-skewed, we do feature transformation
+house_price_naive <- house_price |>
+  mutate(
+    LogGrLivArea = log(GrLivArea),
+  )
+
+vars <- c(
+  "OverallQual",
+  "LogGrLivArea",
+  "GarageCars",
+  "TotalBsmtSF",
+  "YearSinceRemodel"
+)
+
+for (v in vars) {
+  p <- ggplot(house_price_naive, aes(x = .data[[v]], y = LogSalePrice)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = "lm", se = TRUE) +
+    labs(
+      title = paste("LogSalePrice vs", v),
+      x = v,
+      y = "LogSalePrice"
+    ) +
+    theme_minimal()
+  
+  print(p)
+}
+
+```
+
+\[
+y_i = \log(\text{SalePrice}_i)
+\]
+\[
+y_i \sim \mathcal{N}(\mu_i,\sigma^2),
+\]
+\[
+\mu_i = \beta_0
++ \beta_1 \text{OverallQual}_i
++ \beta_2 \text{GrLivArea}_i
++ \beta_3 \text{GarageCars}_i
++ \beta_4 \text{TotalBsmtSF}_i
++ \beta_5 \text{YearBuilt}_i
++ \beta_6 \text{YearSinceRemodel}_i.
+\]
+
+
+
+
+
+
