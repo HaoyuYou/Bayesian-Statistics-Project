@@ -112,7 +112,14 @@ ord_vars <- c(
   "PoolQC", "LotShape", "LandSlope", "PavedDrive"
 )
 house_price[ord_vars] <- lapply(house_price[ord_vars], ordinal_to_numeric)
+n_before_omit <- nrow(house_price)
 house_price <- na.omit(house_price)
+n_after_omit <- nrow(house_price)
+n_removed_omit <- n_before_omit - n_after_omit
+
+cat("Rows before na.omit():", n_before_omit, "\n")
+cat("Rows after na.omit():", n_after_omit, "\n")
+cat("Rows removed by na.omit():", n_removed_omit, "\n")
 
 cat_vars <- names(house_price)[sapply(house_price, function(x) is.factor(x) || is.character(x))]
 for (v in cat_vars) {
@@ -230,7 +237,12 @@ cor_with_log_price_abs <- sort(
   cor_with_log_price_abs[names(cor_with_log_price_abs) != "LogSalePrice"],
   decreasing = TRUE
 )
-cor_with_log_price_abs
+cor_with_log_price_abs_df <- data.frame(
+  variable = names(cor_with_log_price_abs),
+  abs_correlation = as.numeric(cor_with_log_price_abs)
+)
+
+head(cor_with_log_price_abs_df, 10)
 drop_vars <- names(cor_with_log_price_abs[cor_with_log_price_abs < 0.3])
 house_price <- house_price |> select(-all_of(drop_vars))
 ```
@@ -313,6 +325,7 @@ house_price <- house_price|> select(-BldgType)
 reduced_model <- lm(LogSalePrice ~ ., data = house_price)
 anova(reduced_model)
 ```
+
 ```{r}
 house_price <- house_price |>
   select(
@@ -334,7 +347,8 @@ house_price <- house_price |>
     -OpenPorchSF
   )
 full_model <- lm(LogSalePrice ~ ., data = house_price)
-vif(full_model)
+vif_values <- vif(full_model)
+round(vif_values, 3)
 ```
 
 
@@ -344,7 +358,7 @@ str(house_price)
 ```
 
 # Model
-## native model(only consider some numeric variable)
+## naive model(only consider some numeric variable)
 some reason:
 
 
@@ -353,14 +367,14 @@ some reason:
 
 
 ```{r}
-vars <- c(
+baseline_vars_raw <- c(
   "OverallQual",
   "GrLivArea",
   "GarageCars",
   "TotalBsmtSF",
   "YearSinceRemodel"
 )
-for (v in vars) {
+for (v in baseline_vars_raw) {
   p <- ggplot(house_price, aes(x = .data[[v]])) +
     geom_histogram(bins = 30, fill = "skyblue", color = "black") +
     labs(
@@ -372,6 +386,7 @@ for (v in vars) {
   print(p)
 }
 ```
+
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -382,7 +397,7 @@ house_price_naive <- house_price |>
     LogGrLivArea = log(GrLivArea),
   )
 
-vars <- c(
+baseline_vars <- c(
   "OverallQual",
   "LogGrLivArea",
   "GarageCars",
@@ -390,7 +405,7 @@ vars <- c(
   "YearSinceRemodel"
 )
 
-for (v in vars) {
+for (v in baseline_vars) {
   p <- ggplot(house_price_naive, aes(x = .data[[v]], y = LogSalePrice)) +
     geom_point(alpha = 0.4) +
     geom_smooth(method = "lm", se = TRUE) +
@@ -548,6 +563,7 @@ for (v in vars_check) {
 plot.new()
 par(mfrow = c(1, 1))
 ```
+
 ```{r}
 prior_rep_once <- function(df) {
   par_draw <- draw_prior_params()
@@ -632,6 +648,7 @@ fit_mcmc <- mod$sample(
   max_treedepth = 12
 )
 ```
+
 ```{r}
 # parameter summary
 summary_mcmc <- fit_mcmc$summary(
@@ -690,7 +707,7 @@ rmse_yrep_mcmc
 mae_yrep_mcmc
 ```
 # VI
-```{r, message=False}
+```{r, message=FALSE}
 fit_vi <- mod$variational(
   data = stan_data,
   seed = 123,
@@ -699,6 +716,7 @@ fit_vi <- mod$variational(
   show_exceptions = FALSE
 )
 ```
+
 ```{r}
 summary_vi = fit_vi$summary(variables = c("beta0", "beta1", "beta2", "beta3", "beta4", "beta5", "sigma"))
 summary_vi
@@ -720,8 +738,8 @@ params <- c("beta0","beta1","beta2","beta3","beta4","beta5","sigma")
 draws_mcmc <- fit_mcmc$draws(params)
 draws_vi   <- fit_vi$draws(params)
 
-mcmc_df <- as_draws_df(draws_mcmc)
-vi_df   <- as_draws_df(draws_vi)
+mcmc_df <- posterior::as_draws_df(draws_mcmc)
+vi_df   <- posterior::as_draws_df(draws_vi)
 
 par(mfrow = c(2, 4))
 
@@ -739,6 +757,7 @@ for (p in params) {
          bty = "n")
 }
 ```
+
 ```{r}
 yrep_vi_draws <- fit_vi$draws("y_rep")
 yrep_vi_mat <- posterior::as_draws_matrix(yrep_vi_draws)
@@ -785,6 +804,7 @@ summary(as.vector(yrep_vi_mat))
 range(yrep_vi_mean)
 summary(yrep_vi_mean)
 ```
+
 ```{r}
 mu_vi_draws <- fit_vi$draws("mu")
 mu_vi_mat <- posterior::as_draws_matrix(mu_vi_draws)
@@ -819,4 +839,3 @@ compare_table <- data.frame(
 compare_table
 ```
 
-总体的意思就是VI拟合很差
