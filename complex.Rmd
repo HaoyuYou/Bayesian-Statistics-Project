@@ -1,0 +1,163 @@
+---
+title: "complex model"
+output: pdf_document
+date: "2026-04-19"
+---
+\section*{Hierarchical Block-Structured Bayesian Model}
+
+Let
+\[
+y_i = \log(\text{SalePrice}_i)
+\]
+denote the response for house $i$.
+
+\subsection*{Likelihood}
+\[
+y_i \sim \mathcal{N}(\mu_i, \sigma)
+\]
+
+\subsection*{Linear Predictor}
+\[
+\mu_i
+=
+\beta_0
++ \alpha_{j[i]}
++ \eta_i^{(L)}
++ \eta_i^{(I)}
++ \eta_i^{(B)}
++ \eta_i^{(S)}
++ \eta_i^{(C)}
++ \beta_1 \cdot \text{GrLivArea}_i
++ \beta_2 \cdot \text{MasVnrArea}_i
++ \beta_3 \cdot \text{YearSinceRemodel}_i
+\]
+
+\subsection*{Neighborhood Effect}
+\[
+\alpha_j \sim \mathcal{N}(\mu_\alpha, \sigma_\alpha)
+\]
+
+\subsection*{Lot Block Effect}
+\[
+\eta_i^{(L)}
+=
+w_1 \cdot \text{LotFrontage}_i
++ w_2 \cdot \text{LotShape}_i
++ w_3 \cdot \text{LandContour}_i
++ w_4 \cdot \text{LotConfig}_i
+\]
+
+\[
+w_1, w_2, w_3, w_4 \sim \mathcal{N}(0, \tau_L)
+\]
+
+\[
+\tau_L \sim \text{Half-Normal}(0,1)
+\]
+
+\subsection*{Interior Block Effect}
+\[
+\eta_i^{(I)}
+=
+w_5 \cdot \text{OverallQual}_i
++ w_6 \cdot \text{HeatingQC}_i
++ w_7 \cdot \text{FireplaceQu}_i
++ w_8 \cdot \text{GarageCars}_i
++ w_9 \cdot \text{CentralAir}_i
++ w_{10} \cdot \text{Electrical}_i
+\]
+
+\[
+w_5, \dots, w_{10} \sim \mathcal{N}(0, \tau_I)
+\]
+
+\[
+\tau_I \sim \text{Half-Normal}(0,1)
+\]
+
+\subsection*{Basement Block Effect}
+\[
+\eta_i^{(B)}
+=
+w_{11} \cdot \text{BsmtQual}_i
++ w_{12} \cdot \text{BsmtExposure}_i
++ w_{13} \cdot \text{BsmtFinType1}_i
++ w_{14} \cdot \text{BsmtFinSF1}_i
++ w_{15} \cdot \text{TotalBsmtSF}_i
+\]
+
+\[
+w_{11}, \dots, w_{15} \sim \mathcal{N}(0, \tau_B)
+\]
+
+\[
+\tau_B \sim \text{Half-Normal}(0,1)
+\]
+
+\subsection*{Structure Block Effect}
+\[
+\eta_i^{(S)}
+=
+\delta^{(\text{MSSubClass})}_{a[i]}
++ \delta^{(\text{MSZoning})}_{b[i]}
++ \delta^{(\text{HouseStyle})}_{c[i]}
++ \delta^{(\text{Exterior1st})}_{d[i]}
++ \delta^{(\text{MasVnrType})}_{e[i]}
++ \delta^{(\text{Foundation})}_{f[i]}
++ \delta^{(\text{Condition1})}_{g[i]}
+\]
+
+\[
+\delta^{(\text{MSSubClass})}_a,
+\delta^{(\text{MSZoning})}_b,
+\delta^{(\text{HouseStyle})}_c,
+\delta^{(\text{Exterior1st})}_d,
+\delta^{(\text{MasVnrType})}_e,
+\delta^{(\text{Foundation})}_f,
+\delta^{(\text{Condition1})}_g
+\sim \mathcal{N}(0, \tau_S)
+\]
+
+\[
+\tau_S \sim \text{Half-Normal}(0,1)
+\]
+
+\subsection*{Sale Condition Effect}
+\[
+\eta_i^{(C)} = \delta^{(\text{SaleCondition})}_{h[i]}
+\]
+
+\[
+\delta^{(\text{SaleCondition})}_h \sim \mathcal{N}(0, \tau_C)
+\]
+
+\[
+\tau_C \sim \text{Half-Normal}(0,1)
+\]
+
+\subsection*{Prior Distributions}
+
+\paragraph{Global Intercept}
+\[
+\beta_0 \sim \mathcal{N}(12, 1)
+\]
+
+\paragraph{Regression Coefficients}
+\[
+\beta_1, \beta_2, \beta_3 \sim \mathcal{N}(0, 1)
+\]
+
+\paragraph{Neighborhood Hyperpriors}
+\[
+\mu_\alpha \sim \mathcal{N}(0,1)
+\]
+
+\[
+\sigma_\alpha \sim \text{Half-Normal}(0,1)
+\]
+
+\paragraph{Noise Term}
+\[
+\sigma \sim \text{Half-Normal}(0,1)
+\]
+
