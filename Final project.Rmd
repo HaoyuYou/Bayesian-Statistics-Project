@@ -774,6 +774,35 @@ legend(
   lwd = c(3, 1)
 )
 ```
+
+```{r}
+range(stan_data$y)
+summary(stan_data$y)
+
+range(yrep_vi_mat)
+summary(as.vector(yrep_vi_mat))
+
+range(yrep_vi_mean)
+summary(yrep_vi_mean)
+```
+```{r}
+mu_vi_draws <- fit_vi$draws("mu")
+mu_vi_mat <- posterior::as_draws_matrix(mu_vi_draws)
+mu_vi_mean <- colMeans(mu_vi_mat)
+
+range(mu_vi_mean)
+summary(mu_vi_mean)
+
+plot(
+  stan_data$y, mu_vi_mean,
+  pch = 16,
+  col = rgb(0, 0, 1, 0.4),
+  xlab = "Observed LogSalePrice",
+  ylab = "VI fitted mean",
+  main = "Observed vs VI fitted mean"
+)
+abline(0, 1, col = "red", lwd = 2)
+```
 # Comparison
 ```{r}
 compare_table <- data.frame(
@@ -790,4 +819,4 @@ compare_table <- data.frame(
 compare_table
 ```
 
-
+总体的意思就是VI拟合很差
