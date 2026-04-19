@@ -8,6 +8,11 @@ library(ggplot2)
 library(dplyr)
 library(corrplot)
 library(car)
+suppressPackageStartupMessages(library(cmdstanr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(bayesplot))
+source("simple.R")
+source("simple_utils.R")
 ```
 
 ```{r}
@@ -402,23 +407,387 @@ for (v in vars) {
 ```
 
 \[
-y_i = \log(\text{SalePrice}_i)
+y_i=\log(\text{SalePrice}_i), \qquad i=1,\dots,n
 \]
 \[
-y_i \sim \mathcal{N}(\mu_i,\sigma^2),
+y_i \sim \mathcal{N}(\mu_i,\sigma^2)
 \]
 \[
-\mu_i = \beta_0
+\mu_i
+=
+\beta_0
 + \beta_1 \text{OverallQual}_i
-+ \beta_2 \text{GrLivArea}_i
++ \beta_2 \text{LogGrLivArea}_i
 + \beta_3 \text{GarageCars}_i
 + \beta_4 \text{TotalBsmtSF}_i
-+ \beta_5 \text{YearBuilt}_i
-+ \beta_6 \text{YearSinceRemodel}_i.
++ \beta_5 \text{YearSinceRemodel}_i
+\]
+\[
+\text{LogGrLivArea}_i=\log(\text{GrLivArea}_i)
+\]
+\[
+\beta_0 \sim \mathcal{N}(8.8,0.05^2), \qquad
+\beta_1 \sim \mathcal{N}(0.10,0.03^2), \qquad
+\beta_2 \sim \mathcal{N}(0.25,0.08^2),
+\]
+\[
+\beta_3 \sim \mathcal{N}(0.06,0.03^2), \qquad
+\beta_4 \sim \mathcal{N}(0.00010,0.00003^2), \qquad
+\beta_5 \sim \mathcal{N}(-0.003,0.004^2)
+\]
+\[
+\sigma \sim \text{half-Normal}(0,0.10^2)
 \]
 
+```{r}
+# data for prior predictive check
+house_price_prior <- house_price |>
+  mutate(
+    LogGrLivArea = log(GrLivArea),
+    ) |>
+  select(
+    LogSalePrice,
+    OverallQual,
+    LogGrLivArea,
+    GarageCars,
+    TotalBsmtSF,
+    YearSinceRemodel
+  )
+
+# draw one set of priors
+draw_prior_params <- function() {
+  list(
+    beta0 = simulate(Norm(8.8, 0.05)),
+    beta1 = simulate(Norm(0.10, 0.03)),        # OverallQual
+    beta2 = simulate(Norm(0.25, 0.08)),        # LogGrLivArea
+    beta3 = simulate(Norm(0.06, 0.03)),        # GarageCars
+    beta4 = simulate(Norm(0.00010, 0.00003)),  # TotalBsmtSF
+    beta5 = simulate(Norm(-0.003, 0.004)),     # YearSinceRemodel
+    sigma_y  = abs(simulate(Norm(0, 0.10)))
+  )
+}
+plot_prior_lines_one_var <- function(df, xvar, n_draws = 40) {
+  xvals <- df[[xvar]]
+  yvals <- df$LogSalePrice
+  
+  xs <- seq(
+    min(xvals, na.rm = TRUE),
+    max(xvals, na.rm = TRUE),
+    length.out = 100
+  )
+  
+  oq0 <- median(df$OverallQual, na.rm = TRUE)
+  lg0 <- median(df$LogGrLivArea, na.rm = TRUE)
+  gc0 <- median(df$GarageCars, na.rm = TRUE)
+  bs0 <- median(df$TotalBsmtSF, na.rm = TRUE)
+  yr0 <- median(df$YearSinceRemodel, na.rm = TRUE)
+  
+  plot(
+    xvals, yvals,
+    pch = 16,
+    cex = 0.45,
+    col = rgb(0, 0, 0, 0.10),
+    xlab = xvar,
+    ylab = "log(SalePrice)",
+    main = paste("Prior lines for", xvar),
+    ylim = c(10.5, 13.8)
+  )
+  
+  for (i in 1:n_draws) {
+    par_draw <- draw_prior_params()
+    
+    OverallQual_x     <- rep(oq0, length(xs))
+    LogGrLivArea_x    <- rep(lg0, length(xs))
+    GarageCars_x      <- rep(gc0, length(xs))
+    TotalBsmtSF_x     <- rep(bs0, length(xs))
+    YearSinceRemodel_x <- rep(yr0, length(xs))
+    
+    if (xvar == "OverallQual") {
+      OverallQual_x <- xs
+    }
+    if (xvar == "LogGrLivArea") {
+      LogGrLivArea_x <- xs
+    }
+    if (xvar == "GarageCars") {
+      GarageCars_x <- xs
+    }
+    if (xvar == "TotalBsmtSF") {
+      TotalBsmtSF_x <- xs
+    }
+    if (xvar == "YearSinceRemodel") {
+      YearSinceRemodel_x <- xs
+    }
+    
+    # hold neighborhood effect at 0 for slope check
+    mu_line <- par_draw$beta0 +
+      par_draw$beta1 * OverallQual_x +
+      par_draw$beta2 * LogGrLivArea_x +
+      par_draw$beta3 * GarageCars_x +
+      par_draw$beta4 * TotalBsmtSF_x +
+      par_draw$beta5 * YearSinceRemodel_x
+    
+    lines(xs, mu_line, col = rgb(0, 0, 1, 0.18))
+  }
+}
+set.seed(1)
+
+par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+vars_check <- c(
+  "OverallQual",
+  "LogGrLivArea",
+  "GarageCars",
+  "TotalBsmtSF",
+  "YearSinceRemodel"
+)
+
+for (v in vars_check) {
+  plot_prior_lines_one_var(house_price_prior, v, n_draws = 40)
+}
+
+plot.new()
+par(mfrow = c(1, 1))
+```
+```{r}
+prior_rep_once <- function(df) {
+  par_draw <- draw_prior_params()
+  
+  mu <- par_draw$beta0 +
+    par_draw$beta1 * df$OverallQual +
+    par_draw$beta2 * df$LogGrLivArea +
+    par_draw$beta3 * df$GarageCars +
+    par_draw$beta4 * df$TotalBsmtSF +
+    par_draw$beta5 * df$YearSinceRemodel 
+  
+  yrep <- sapply(mu, function(m) simulate(Norm(m, par_draw$sigma_y)))
+  return(yrep)
+}
+set.seed(1)
+
+plot(
+  NULL,
+  xlim = c(9, 15),
+  ylim = c(0, 2.5),
+  xlab = "log(SalePrice)",
+  ylab = "Density",
+  main = "Prior predictive densities"
+)
+
+# observed density
+obs_d <- density(house_price_prior$LogSalePrice)
+lines(obs_d, col = "red", lwd = 3)
+
+# prior predictive densities
+for (s in 1:30) {
+  yrep <- prior_rep_once(house_price_prior)
+  d <- density(yrep)
+  lines(d, col = rgb(0, 0, 1, 0.15))
+}
+
+legend(
+  "topright",
+  legend = c("Observed", "Prior predictive"),
+  col = c("red", "blue"),
+  lwd = c(3, 1)
+)
+```
+# MCMC
+```{r}
+house_price_stan <- house_price |>
+  mutate(
+    LogGrLivArea = log(GrLivArea)
+  ) |>
+  select(
+    LogSalePrice,
+    OverallQual,
+    LogGrLivArea,
+    GarageCars,
+    TotalBsmtSF,
+    YearSinceRemodel
+  )
+
+stan_data <- list(
+  N = nrow(house_price_stan),
+  y = house_price_stan$LogSalePrice,
+  OverallQual = house_price_stan$OverallQual,
+  LogGrLivArea = house_price_stan$LogGrLivArea,
+  GarageCars = house_price_stan$GarageCars,
+  TotalBsmtSF = house_price_stan$TotalBsmtSF,
+  YearSinceRemodel = house_price_stan$YearSinceRemodel
+)
+```
+
+```{r, message=FALSE}
+mod <- cmdstan_model("model_naive.stan")
+
+fit_mcmc <- mod$sample(
+  data = stan_data,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  refresh = 500,
+  adapt_delta = 0.95,
+  max_treedepth = 12
+)
+```
+```{r}
+# parameter summary
+summary_mcmc <- fit_mcmc$summary(
+  variables = c("beta0", "beta1", "beta2", "beta3", "beta4", "beta5", "sigma")
+)
+summary_mcmc
+
+# trace plot
+draws_mcmc <- fit_mcmc$draws()
+mcmc_trace(
+  draws_mcmc,
+  pars = c("beta0", "beta1", "beta2", "beta3", "beta4", "beta5", "sigma")
+)
+
+# posterior predictive check
+yrep_draws <- fit_mcmc$draws("y_rep")
+yrep_mat <- posterior::as_draws_matrix(yrep_draws)
+yrep_mean <- colMeans(yrep_mat)
+
+plot(
+  stan_data$y, yrep_mean,
+  pch = 16,
+  col = rgb(0, 0, 1, 0.4),
+  xlab = "Observed LogSalePrice",
+  ylab = "Posterior predictive mean",
+  main = "Observed vs Posterior Predictive Mean"
+)
+abline(0, 1, col = "red", lwd = 2)
+
+plot(
+  NULL,
+  xlim = range(stan_data$y),
+  ylim = c(0, 2.5),
+  xlab = "log(SalePrice)",
+  ylab = "Density",
+  main = "Posterior predictive densities"
+)
+lines(density(stan_data$y), col = "red", lwd = 3)
+
+for (s in 1:30) {
+  lines(density(yrep_mat[s, ]), col = rgb(0, 0, 1, 0.15))
+}
+
+legend(
+  "topright",
+  legend = c("Observed", "Posterior predictive"),
+  col = c("red", "blue"),
+  lwd = c(3, 1)
+)
+
+# predictive accuracy
+rmse_yrep_mcmc <- sqrt(mean((stan_data$y - yrep_mean)^2))
+mae_yrep_mcmc  <- mean(abs(stan_data$y - yrep_mean))
+
+rmse_yrep_mcmc
+mae_yrep_mcmc
+```
+# VI
+```{r, message=False}
+fit_vi <- mod$variational(
+  data = stan_data,
+  seed = 123,
+  output_samples = 2000,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+```
+```{r}
+summary_vi = fit_vi$summary(variables = c("beta0", "beta1", "beta2", "beta3", "beta4", "beta5", "sigma"))
+summary_vi
 
 
+yrep_vi_draws <- fit_vi$draws("y_rep")
+yrep_vi_mat <- posterior::as_draws_matrix(yrep_vi_draws)
+yrep_vi_mean <- colMeans(yrep_vi_mat)
+rmse_yrep_vi <- sqrt(mean((stan_data$y - yrep_vi_mean)^2))
+mae_yrep_vi  <- mean(abs(stan_data$y - yrep_vi_mean))
+rmse_yrep_vi
+mae_yrep_vi
 
+```
+
+```{r}
+params <- c("beta0","beta1","beta2","beta3","beta4","beta5","sigma")
+
+draws_mcmc <- fit_mcmc$draws(params)
+draws_vi   <- fit_vi$draws(params)
+
+mcmc_df <- as_draws_df(draws_mcmc)
+vi_df   <- as_draws_df(draws_vi)
+
+par(mfrow = c(2, 4))
+
+for (p in params) {
+  d_mcmc <- density(mcmc_df[[p]])
+  d_vi   <- density(vi_df[[p]])
+  
+  plot(d_mcmc, main = p, xlab = p, lwd = 2)
+  lines(d_vi, lwd = 2, lty = 2)
+  
+  legend("topright",
+         legend = c("MCMC", "VI"),
+         lty = c(1, 2),
+         lwd = 2,
+         bty = "n")
+}
+```
+```{r}
+yrep_vi_draws <- fit_vi$draws("y_rep")
+yrep_vi_mat <- posterior::as_draws_matrix(yrep_vi_draws)
+yrep_vi_mean <- colMeans(yrep_vi_mat)
+plot(
+  stan_data$y, yrep_vi_mean,
+  pch = 16,
+  col = rgb(0, 0, 1, 0.4),
+  xlab = "Observed LogSalePrice",
+  ylab = "VI posterior predictive mean",
+  main = "Observed vs VI Posterior Predictive Mean"
+)
+abline(0, 1, col = "red", lwd = 2)
+plot(
+  NULL,
+  xlim = range(stan_data$y),
+  ylim = c(0, 2.5),
+  xlab = "log(SalePrice)",
+  ylab = "Density",
+  main = "VI Posterior Predictive Densities"
+)
+
+lines(density(stan_data$y), col = "red", lwd = 3)
+
+for (s in 1:30) {
+  lines(density(yrep_vi_mat[s, ]), col = rgb(0, 0, 1, 0.15))
+}
+
+legend(
+  "topright",
+  legend = c("Observed", "Posterior predictive"),
+  col = c("red", "blue"),
+  lwd = c(3, 1)
+)
+```
+# Comparison
+```{r}
+compare_table <- data.frame(
+  parameter = summary_mcmc$variable,
+  mean_mcmc = summary_mcmc$mean,
+  mean_vi   = summary_vi$mean,
+  sd_mcmc   = summary_mcmc$sd,
+  sd_vi     = summary_vi$sd,
+  q5_mcmc   = summary_mcmc$q5,
+  q5_vi     = summary_vi$q5,
+  q95_mcmc  = summary_mcmc$q95,
+  q95_vi    = summary_vi$q95
+)
+compare_table
+```
 
 
