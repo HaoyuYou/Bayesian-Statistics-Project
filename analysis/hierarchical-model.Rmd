@@ -1,8 +1,17 @@
 ---
-title: "complex model"
-output: pdf_document
+title: "Hierarchical House Price Model"
+author: "Ruohan Sun, Haoyu You"
+output:
+  html_document:
+    toc: true
+  pdf_document: default
 date: "2026-04-19"
 ---
+This document describes the proposed extension, which has not been fitted in the
+submitted analysis. Its Stan source is `models/model_complex.stan`. This editable
+specification has been corrected to match the LKJ(2) correlation prior used in
+that implementation; the original PDFs are retained as historical snapshots.
+
 ## Model 2: Hierarchical varying-intercept and varying-slope model
 
 Let
@@ -36,7 +45,7 @@ The neighborhood-specific effects are modeled hierarchically as
 \gamma_j \sim \mathcal{N}(0, \tau_\gamma^2), \qquad j = 1, \dots, J.
 \]
 
-Equivalently, we may write
+To allow correlated neighborhood intercepts and slopes, we use the joint model
 \[
 \begin{pmatrix}
 \alpha_j \\
@@ -79,7 +88,15 @@ The priors are
 \tau_\gamma \sim \text{half-Normal}(0, 0.05^2),
 \]
 \[
-\rho \sim \text{Uniform}(-1,1),
+\Omega \sim \operatorname{LKJ}(2), \qquad \rho=\Omega_{12},
 \qquad
 \sigma \sim \text{half-Normal}(0, 0.10^2).
 \]
+
+
+Here $\Omega$ is a $2 \times 2$ correlation matrix and
+$\Sigma = \operatorname{diag}(\tau_\alpha, \tau_\gamma)
+\Omega \operatorname{diag}(\tau_\alpha, \tau_\gamma)$.
+The Stan implementation uses a Cholesky factor and a non-centered
+parameterization. LKJ(2) favors correlations near zero; it is not a uniform prior
+on $\rho$. See `docs/methodology.md` for the implementation notes.

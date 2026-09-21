@@ -2,3 +2,25 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Local operating-system and editor files
+.DS_Store
+~$*
+*.swp
+
+# Compiled Stan models (keep the portable .stan source files)
+/models/model_naive
+/models/model_complex
+/models/*.exe
+/models/*.hpp
+/models/*.o
+
+# New rendered reports and inference output; submitted PDFs live in reports/
+/outputs/
+*_cache/
+*_files/
+*.Rmd.tex
+*.aux
+*.log
+*.out
+*.toc

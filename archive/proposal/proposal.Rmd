@@ -2,6 +2,17 @@
 title: "STAT 405 Project Proposal"
 output: pdf_document
 ---
+
+```{r setup, include=FALSE}
+project_root <- if (file.exists("Bayesian-Statistics-Project.Rproj")) "." else "../.."
+project_root <- normalizePath(project_root, mustWork = TRUE)
+stopifnot(file.exists(file.path(project_root, "Bayesian-Statistics-Project.Rproj")))
+knitr::opts_knit$set(root.dir = project_root)
+```
+
+> Historical proposal: this bike-sharing topic was superseded by the Ames housing
+> project. See the repository README for the final scope and results.
+
 # Team Member:
 - Haoyu You (Student ID: 34735811)
 - Ruohan Sun (Student ID: 59673772)
@@ -20,7 +31,7 @@ We use the daily dataset (`day.csv`), which includes 731 observations, where eac
 Key variables include temperature (`temp`), humidity (`hum`), wind speed (`windspeed`), season (`season`), weather situation (`weathersit`), and whether the day is a working day (`workingday`). These variables help explain patterns in bike rental demand.
 
 ```{r main}
-bike <- read.csv("data/day.csv")
+bike <- read.csv("archive/proposal/data/day.csv")
 cat_vars <- c("season", "yr", "mnth", "holiday", "weekday", "workingday", "weathersit")
 bike[cat_vars] <- lapply(bike[cat_vars], as.factor)
 head(bike)
@@ -33,7 +44,7 @@ https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
 ## backup: BMW Global Automotive Sale
 
 ```{r}
-bmw <- read.csv("data/bmw_global_sales_2018_2025.csv")
+bmw <- read.csv("archive/proposal/data/bmw_global_sales_2018_2025.csv")
 head(bmw)
 ```
 ### URL: 

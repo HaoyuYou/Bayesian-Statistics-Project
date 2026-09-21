@@ -1,8 +1,38 @@
 ---
-title: "STAT405 Bayesian Statistics Final Project"
-output: pdf_document
+title: "Bayesian House Price Modeling"
+author: "Ruohan Sun, Haoyu You"
+subtitle: "STAT 405 | Baseline regression and posterior inference"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: readable
+  pdf_document:
+    toc: true
 ---
-# EDA
+
+```{r setup, include=FALSE}
+# Support both Knit from analysis/ and rendering from the repository root.
+project_root <- if (file.exists("Bayesian-Statistics-Project.Rproj")) "." else ".."
+project_root <- normalizePath(project_root, mustWork = TRUE)
+stopifnot(file.exists(file.path(project_root, "Bayesian-Statistics-Project.Rproj")))
+knitr::opts_knit$set(root.dir = project_root)
+```
+
+# Overview
+
+This notebook fits a Bayesian Gaussian regression to log sale prices in the Ames
+housing training data. It compares MCMC with mean-field variational inference
+for the same five-predictor model. The neighborhood-level hierarchical extension
+is specified separately in `analysis/hierarchical-model.Rmd` and
+`models/model_complex.stan`; it is not fitted here.
+
+The reported RMSE and MAE are in-sample summaries on the natural-log price scale.
+The Kaggle test data are not used. The original run is preserved in
+`reports/analysis-notebook.pdf`; see `docs/methodology.md` for interpretation and
+known limitations.
+
+# Exploratory data analysis
 ```{r, warning=FALSE}
 library(ggplot2)
 library(dplyr)
@@ -11,8 +41,8 @@ library(car)
 suppressPackageStartupMessages(library(cmdstanr))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(bayesplot))
-source("simple.R")
-source("simple_utils.R")
+source("R/simple.R")
+source("R/simple_utils.R")
 ```
 
 ```{r}
@@ -223,8 +253,8 @@ ggplot(house_price, aes(x = SalePrice)) +
 house_price$LogSalePrice = log(house_price$SalePrice)
 ggplot(house_price, aes(x = LogSalePrice)) +
   geom_histogram(bins = 30, fill = "lightblue", color = "white") +
-  labs(title = "Histogram of House Price",
-       x = "Sale Price",
+  labs(title = "Histogram of Log House Price",
+       x = "log(SalePrice)",
        y = "Frequency")
 house_price <- house_price |> select(-SalePrice)
 ```
@@ -268,7 +298,7 @@ high_cor_df
 ```{r}
 drop_vars_highcor <- c()
 
-for (i in 1:nrow(high_cor_df)) {
+for (i in seq_len(nrow(high_cor_df))) {
   v1 <- high_cor_df$var1[i]
   v2 <- high_cor_df$var2[i]
 
@@ -358,12 +388,12 @@ str(house_price)
 ```
 
 # Model
-## naive model(only consider some numeric variable)
-some reason:
+## Baseline Gaussian regression
 
-
-
-
+The five predictors describe overall quality, living area, garage capacity,
+basement area, and time since remodeling. They retain practical interpretations
+after the exploratory screening above. Living area is log-transformed to reduce
+skewness; all priors below use these original predictor scales.
 
 
 ```{r}
@@ -607,7 +637,7 @@ legend(
   lwd = c(3, 1)
 )
 ```
-# MCMC
+# MCMC inference
 ```{r}
 house_price_stan <- house_price |>
   mutate(
@@ -634,7 +664,7 @@ stan_data <- list(
 ```
 
 ```{r, message=FALSE}
-mod <- cmdstan_model("model_naive.stan")
+mod <- cmdstan_model("models/model_naive.stan")
 
 fit_mcmc <- mod$sample(
   data = stan_data,
@@ -706,14 +736,20 @@ mae_yrep_mcmc  <- mean(abs(stan_data$y - yrep_mean))
 rmse_yrep_mcmc
 mae_yrep_mcmc
 ```
-# VI
-```{r, message=FALSE}
+# Variational inference
+
+The original VI run produced an unreliable approximation. Its outputs are
+retained for comparison; reruns should inspect optimizer messages and predictive
+checks before interpreting any estimates.
+
+```{r variational-fit, message=TRUE}
 fit_vi <- mod$variational(
   data = stan_data,
   seed = 123,
   output_samples = 2000,
-  show_messages = FALSE,
-  show_exceptions = FALSE
+  algorithm = "meanfield",
+  show_messages = TRUE,
+  show_exceptions = TRUE
 )
 ```
 
@@ -839,3 +875,10 @@ compare_table <- data.frame(
 compare_table
 ```
 
+
+# Reproducibility information
+
+```{r session-info}
+sessionInfo()
+cmdstanr::cmdstan_version()
+```
